@@ -1,1 +1,1 @@
-# Style50 VAIX
+# Style50 VSIX
