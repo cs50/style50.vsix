@@ -4,6 +4,9 @@ import { exec } from 'child_process';
 // Set source as style50
 const SOURCE = 'style50';
 
+// Specify supported languages
+const SUPPORTED_LANG = ['python'];
+
 // Configure mapping for vscode diagnostic severity with style50-mock (e.g., pylint)
 const severity = {
 	'convention': vscode.DiagnosticSeverity.Information,
@@ -16,6 +19,11 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Perform style checking upon saving a document
     vscode.workspace.onDidSaveTextDocument(savedDocument => {
+
+		// Do not generate diagnostics if current file is not supported
+		if (!SUPPORTED_LANG.includes(savedDocument.languageId)) {
+			return;
+		}
 		
 		// Clear all diagnostic information for the current file
 		diagnosticCollection.delete(savedDocument.uri);
