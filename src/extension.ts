@@ -58,5 +58,10 @@ export function activate(context: vscode.ExtensionContext) {
 		vscode.workspace.onDidChangeTextDocument(changedDocument => {
 			diagnosticCollection.delete(savedDocument.uri);
 		});
+
+		// Clear all diagnostics when the file is closed
+		vscode.workspace.onDidCloseTextDocument(closedDocument => {
+			diagnosticCollection.delete(savedDocument.uri);
+		});
 	});
 }
