@@ -24,8 +24,8 @@ export function activate(context: vscode.ExtensionContext) {
 		const diagnostics: vscode.Diagnostic[] = [];
 
 		// Run style50-mock for style checking, then process the result
-		exec(`style50-mock ${savedDocument.uri.path}`, (error, stdout, stderr) => {
-			
+		exec(`PATH=$PATH:/home/ubuntu/.local/bin && style50-mock ${savedDocument.uri.path}`, {"env": process.env}, (error, stdout, stderr) => {
+
 			// We expect a JSON output format from stdout
 			const check_results = JSON.parse(stdout);
 
