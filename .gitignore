@@ -3,5 +3,7 @@ out
 node_modules
 .vscode-test/
 .vscode
+*.egg-info
 *.vsix
 test_files
+build/
