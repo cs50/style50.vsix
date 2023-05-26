@@ -16,9 +16,18 @@
         "commands": [
             {
                 "command": "style50.run",
-                "title": "Run style50"
+                "title": "Format"
             }
-        ]
+        ],
+        "menus": {
+            "editor/title": [
+                {
+                    "command": "style50.run",
+                    "group": "navigation@0",
+                    "when": "editorTextFocus && (resourceExtname =~ /\\.(py|c|cpp|h|hpp|java)$/) && !isInDiffEditor"
+                }
+            ]
+        }
     },
 	"activationEvents": [
 		"onStartupFinished"

@@ -13,17 +13,17 @@ export function activate(context: vscode.ExtensionContext) {
         const diffTitle = `style50: ${activeEditor.document.fileName.split('/').pop()}`;
         const activeFileUri = activeEditor.document.uri;
         const tmpOutFile = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
+        const fileExt = activeEditor.document.fileName.split('.').pop();
 
         // run formatter on python files
-        if (activeEditor.document.languageId === 'python') {
+        if (fileExt === 'py') {
             exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && black ${tmpOutFile}`, (err, stdout, stderr) => {
-                console.log(stdout);
                 showDiff(activeFileUri, tmpOutFile, diffTitle);
             });
         }
 
         // run formatter on c/cpp/java files
-        if (['c', 'cpp', 'h', 'hpp', 'java'].includes(activeEditor.document.languageId)) {
+        if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
             const astyle = [
                 "astyle", "--ascii", "--add-braces", "--break-one-line-headers",
                 "--align-pointer=name", "--pad-comma", "--unpad-paren",
