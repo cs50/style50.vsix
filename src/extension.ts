@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
 
         // run formatter on python files
         if (activeEditor.document.languageId === 'python') {
-            exec(`autopep8 ${activeFileUri.fsPath} > ${tmpOutFile}`, (err, stdout, stderr) => {
+            exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && black ${tmpOutFile}`, (err, stdout, stderr) => {
                 console.log(stdout);
                 showDiff(activeFileUri, tmpOutFile, diffTitle);
             });
