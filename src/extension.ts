@@ -18,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
         // run formatter on python files
         if (fileExt === 'py') {
             exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && black ${tmpOutFile}`, (err, stdout, stderr) => {
-                showDiff(activeFileUri, tmpOutFile, diffTitle);
+                showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
             });
         }
 
@@ -35,13 +35,19 @@ export function activate(context: vscode.ExtensionContext) {
             ].join(" ");
 
             exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && ${astyle} ${tmpOutFile}`, (err, stdout, stderr) => {
-                showDiff(activeFileUri, tmpOutFile, diffTitle);
+                showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
             });
         }
-
     });
 }
 
-function showDiff(leftUri: vscode.Uri, rightUri: string, title: string) {
-    vscode.commands.executeCommand('vscode.diff', leftUri, vscode.Uri.file(rightUri), title);
+function showDiff(leftUri: vscode.Uri, rightUri: vscode.Uri, title: string) {
+    // check if two files are different
+    exec(`diff ${leftUri.fsPath} ${rightUri.fsPath}`, (err, stdout, stderr) => {
+        if (stdout) {
+            vscode.commands.executeCommand('vscode.diff', leftUri, rightUri, title);
+        } else {
+            vscode.window.showInformationMessage('Looks formatted!');
+        }
+    });
 }
