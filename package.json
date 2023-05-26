@@ -9,10 +9,19 @@
 		"vscode": "^1.76.0"
 	},
 	"categories": [
-		"Education"
+		"Education",
+        "Programming Languages"
 	],
+    "contributes": {
+        "commands": [
+            {
+                "command": "style50.run",
+                "title": "Run style50"
+            }
+        ]
+    },
 	"activationEvents": [
-		"onLanguage:python"
+		"onStartupFinished"
 	],
 	"main": "./out/extension.js",
 	"scripts": {
