@@ -10,25 +10,25 @@
 	},
 	"categories": [
 		"Education",
-        "Programming Languages"
+		"Programming Languages"
 	],
-    "contributes": {
-        "commands": [
-            {
-                "command": "style50.run",
-                "title": "Format"
-            }
-        ],
-        "menus": {
-            "editor/title": [
-                {
-                    "command": "style50.run",
-                    "group": "navigation@0",
-                    "when": "editorTextFocus && (resourceExtname =~ /\\.(py|c|cpp|h|hpp|java)$/) && !isInDiffEditor"
-                }
-            ]
-        }
-    },
+	"contributes": {
+		"commands": [
+			{
+				"command": "style50.run",
+				"title": "Format"
+			}
+		],
+		"menus": {
+			"editor/title": [
+				{
+					"command": "style50.run",
+					"group": "navigation@0",
+					"when": "editorTextFocus && (resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && !isInDiffEditor"
+				}
+			]
+		}
+	},
 	"activationEvents": [
 		"onStartupFinished"
 	],
@@ -41,13 +41,14 @@
 	},
 	"devDependencies": {
 		"@types/node": "^20.1.7",
-        "@types/vscode": "^1.76.0",
+		"@types/vscode": "^1.76.0",
 		"@typescript-eslint/eslint-plugin": "^5.59.6",
 		"@typescript-eslint/parser": "^5.59.6",
 		"eslint": "^8.40.0",
 		"typescript": "^5.0.4"
 	},
 	"dependencies": {
-		"@vscode/vsce": "^2.19.0"
+		"@vscode/vsce": "^2.19.0",
+		"js-beautify": "^1.14.7"
 	}
 }

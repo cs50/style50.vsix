@@ -1,5 +1,11 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
+
+const js_beautify = require('js-beautify/js').js;
+const html_beautify = require('js-beautify/js').html;
+const css_beautify = require('js-beautify/js').css;
+const fs = require('fs');
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -36,6 +42,33 @@ export function activate(context: vscode.ExtensionContext) {
 
             exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && ${astyle} ${tmpOutFile}`, (err, stdout, stderr) => {
                 showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
+            });
+        }
+
+        // run formatter on html/css/js files
+        if (['html', 'css', 'js'].includes(fileExt)) {
+            fs.readFile(activeFileUri.fsPath, 'utf8', function (err, data) {
+                const options = { indent_size: 4 };
+
+                if (fileExt === 'html') {
+                    options['indent_inner_html'] = true;
+                    fs.writeFile(tmpOutFile, html_beautify(data, options), () => {
+                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
+                    });
+                }
+
+                if (fileExt === 'css') {
+                    fs.writeFile(tmpOutFile, css_beautify(data, options), () => {
+                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
+                    });
+                }
+
+                if (fileExt === 'js') {
+                    options['space_in_empty_paren'] = true;
+                    fs.writeFile(tmpOutFile, js_beautify(data, options), () => {
+                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
+                    });
+                }
             });
         }
     });
