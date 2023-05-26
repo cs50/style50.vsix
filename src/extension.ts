@@ -10,7 +10,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!activeEditor) {
             return;
         }
-        const diffTitle = `style50: ${activeEditor.document.fileName.split('/').pop()}`;
+        const diffTitle = `Format ${activeEditor.document.fileName.split('/').pop()}`;
         const activeFileUri = activeEditor.document.uri;
         const tmpOutFile = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
         const fileExt = activeEditor.document.fileName.split('.').pop();
