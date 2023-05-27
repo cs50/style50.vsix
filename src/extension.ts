@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('style50.run', () => {
         try {
             const activeEditor = vscode.window.activeTextEditor;
-            const diffTitle = `Format ${activeEditor.document.fileName.split('/').pop()}`;
+            const diffTitle = `style50 ${activeEditor.document.fileName.split('/').pop()}`;
             const sourceFileUri = activeEditor.document.uri;
             const formattedFilePath = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
             const fileExt = activeEditor.document.fileName.split('.').pop();
