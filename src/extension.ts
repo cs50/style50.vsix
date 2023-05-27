@@ -61,12 +61,12 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
-function showDiff(leftUri: vscode.Uri, rightUri: vscode.Uri, title: string) {
+function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
 
     // check if two files are different
-    exec(`diff ${leftUri.fsPath} ${rightUri.fsPath}`, (err, stdout, stderr) => {
+    exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, (err, stdout, stderr) => {
         if (stdout) {
-            vscode.commands.executeCommand('vscode.diff', leftUri, rightUri, title);
+            vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
         } else {
             vscode.window.showInformationMessage('Looks formatted!');
         }
