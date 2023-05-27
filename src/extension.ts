@@ -30,17 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
 
         // run formatter on c/cpp/java files
         if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
-            const astyle = [
-                "astyle", "--ascii", "--add-braces", "--break-one-line-headers",
-                "--align-pointer=name", "--pad-comma", "--unpad-paren",
-                "--pad-header", "--pad-oper", "--max-code-length=132",
-                "--convert-tabs", "--indent=spaces=4",
-                "--indent-continuation=1", "--indent-switches",
-                "--lineend=linux", "--min-conditional-indent=1",
-                "--options=none", "--style=allman"
-            ].join(" ");
-
-            exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && ${astyle} ${tmpOutFile}`, (err, stdout, stderr) => {
+            const clangFormatFile = vscode.Uri.joinPath(context.extension.extensionUri, 'clang-format');
+            exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && clang-format -i -style=${clangFormatFile} ${tmpOutFile}`, (err, stdout, stderr) => {
                 showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
             });
         }
