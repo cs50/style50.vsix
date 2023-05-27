@@ -2,6 +2,7 @@
     "name": "style50",
     "displayName": "Style50",
     "description": "A tool with which code can be checked against the CS50 style guide.",
+    "icon": "images/style50.png",
     "version": "0.0.1",
     "publisher": "CS50",
     "repository": "https://github.com/cs50/style50.vsix",
