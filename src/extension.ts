@@ -5,6 +5,11 @@ import * as fs from 'fs';
 import * as formatter from 'js-beautify';
 
 export function activate(context: vscode.ExtensionContext) {
+
+    // remove all temp files
+    exec(`rm -rf /tmp/style50_diff_*`);
+
+    // register command
     vscode.commands.registerCommand('style50.run', () => {
         try {
             const activeEditor = vscode.window.activeTextEditor;
