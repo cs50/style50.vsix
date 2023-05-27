@@ -4,6 +4,8 @@ import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as formatter from 'js-beautify';
 
+let applyCommand: vscode.Disposable;
+
 export function activate(context: vscode.ExtensionContext) {
 
     // remove all temp files
@@ -20,7 +22,12 @@ export function activate(context: vscode.ExtensionContext) {
 
             // python
             if (fileExt === 'py') {
-                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`, () => {
+                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`, (err) => {
+                    if (err) {
+                        console.log(err);
+                        vscode.window.showErrorMessage(err.message);
+                        return;
+                    }
                     showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 });
             }
@@ -28,7 +35,12 @@ export function activate(context: vscode.ExtensionContext) {
             // c, cpp, java
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
                 const clangFormatFile = vscode.Uri.joinPath(context.extension.extensionUri, 'clang-format');
-                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${clangFormatFile} ${formattedFilePath}`, () => {
+                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${clangFormatFile} ${formattedFilePath}`, (err) => {
+                    if (err) {
+                        console.log(err);
+                        vscode.window.showErrorMessage(err.message);
+                        return;
+                    }
                     showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 });
             }
@@ -66,11 +78,30 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
-function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
+async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
 
     // check if two files are different
-    exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, (err, stdout, stderr) => {
+    exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
         if (stdout) {
+
+            // set context to control apply button
+            await vscode.commands.executeCommand("setContext", "style50:formatted", false);
+
+            // dispose apply command, if any
+            if (applyCommand) {
+                applyCommand.dispose();
+            }
+
+            // re-register apply command
+            applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
+                exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath}`);
+                await vscode.commands.executeCommand("setContext", "style50:formatted", true);
+
+                // close diff editor
+                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+            });
+
+            // show diff
             vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
         } else {
             vscode.window.showInformationMessage('Looks formatted!');

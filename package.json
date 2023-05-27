@@ -17,6 +17,10 @@
             {
                 "command": "style50.run",
                 "title": "Format"
+            },
+            {
+                "command": "style50.apply",
+                "title": "Apply Changes"
             }
         ],
         "menus": {
@@ -25,6 +29,11 @@
                     "command": "style50.run",
                     "group": "navigation@0",
                     "when": "editorTextFocus && (resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && !isInDiffEditor"
+                },
+                {
+                    "command": "style50.apply",
+                    "group": "navigation@0",
+                    "when": "editorTextFocus && (resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && !style50:formatted"
                 }
             ]
         }
