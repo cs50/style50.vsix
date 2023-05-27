@@ -11,6 +11,13 @@ export function activate(context: vscode.ExtensionContext) {
     // remove all temp files
     exec(`rm -rf /tmp/style50_diff_*`);
 
+    // make diff editor read-only
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
+        if (e.document.fileName.startsWith("/tmp/style50_diff_")) {
+            await vscode.commands.executeCommand('undo');
+        }
+    }));
+
     // register command
     vscode.commands.registerCommand('style50.run', () => {
         try {
