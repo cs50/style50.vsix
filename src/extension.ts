@@ -114,7 +114,16 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
             // show diff
             vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
         } else {
-            vscode.window.showInformationMessage('Looks good!');
+
+            // create a progress notification window to show the message
+            const progress = vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: 'Looks good!',
+                cancellable: false
+            }, async (progress, token) => {
+                progress.report({ increment: 100 });
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            });
         }
     });
 }
