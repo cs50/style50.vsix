@@ -107,7 +107,7 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
             // show diff
             vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
         } else {
-            vscode.window.showInformationMessage('Looks formatted!');
+            vscode.window.showInformationMessage('Looks good!');
         }
     });
 }
