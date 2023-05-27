@@ -1,71 +1,68 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
 import { exec } from 'child_process';
-
-const js_beautify = require('js-beautify/js').js;
-const html_beautify = require('js-beautify/js').html;
-const css_beautify = require('js-beautify/js').css;
-const fs = require('fs');
+import * as fs from 'fs';
+import * as formatter from 'js-beautify';
 
 export function activate(context: vscode.ExtensionContext) {
-
     vscode.commands.registerCommand('style50.run', () => {
+        try {
+            const activeEditor = vscode.window.activeTextEditor;
+            const diffTitle = `Format ${activeEditor.document.fileName.split('/').pop()}`;
+            const sourceFileUri = activeEditor.document.uri;
+            const formattedFilePath = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
+            const fileExt = activeEditor.document.fileName.split('.').pop();
 
-        // get the active file
-        const activeEditor = vscode.window.activeTextEditor;
-        if (!activeEditor) {
-            return;
-        }
-        const diffTitle = `Format ${activeEditor.document.fileName.split('/').pop()}`;
-        const activeFileUri = activeEditor.document.uri;
-        const tmpOutFile = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
-        const fileExt = activeEditor.document.fileName.split('.').pop();
+            // python
+            if (fileExt === 'py') {
+                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`, () => {
+                    showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                });
+            }
 
-        // run formatter on python files
-        if (fileExt === 'py') {
-            exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && black ${tmpOutFile}`, (err, stdout, stderr) => {
-                showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
-            });
-        }
+            // c, cpp, java
+            if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
+                const clangFormatFile = vscode.Uri.joinPath(context.extension.extensionUri, 'clang-format');
+                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${clangFormatFile} ${formattedFilePath}`, () => {
+                    showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                });
+            }
 
-        // run formatter on c/cpp/java files
-        if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
-            const clangFormatFile = vscode.Uri.joinPath(context.extension.extensionUri, 'clang-format');
-            exec(`cp ${activeFileUri.fsPath} ${tmpOutFile} && clang-format -i -style=${clangFormatFile} ${tmpOutFile}`, (err, stdout, stderr) => {
-                showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
-            });
-        }
-
-        // run formatter on html/css/js files
-        if (['html', 'css', 'js'].includes(fileExt)) {
-            fs.readFile(activeFileUri.fsPath, 'utf8', function (err, data) {
-                const options = { indent_size: 4 };
-
-                if (fileExt === 'html') {
-                    options['indent_inner_html'] = true;
-                    fs.writeFile(tmpOutFile, html_beautify(data, options), () => {
-                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
+            // html, css, javascript
+            if (['html', 'css', 'js'].includes(fileExt)) {
+                fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
+                    if (err) {
+                        console.log(err);
+                        vscode.window.showErrorMessage(err.message);
+                        return;
+                    }
+                    const options = { indent_size: 4 };
+                    switch (fileExt) {
+                        case 'html':
+                            options['indent_inner_html'] = true;
+                            break;
+                        case 'css':
+                            break;
+                        case 'js':
+                            options['space_in_empty_paren'] = true;
+                            break;
+                        default:
+                            break;
+                    }
+                    fs.writeFile(formattedFilePath, formatter[fileExt](data, options), () => {
+                        showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
-                }
-
-                if (fileExt === 'css') {
-                    fs.writeFile(tmpOutFile, css_beautify(data, options), () => {
-                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
-                    });
-                }
-
-                if (fileExt === 'js') {
-                    options['space_in_empty_paren'] = true;
-                    fs.writeFile(tmpOutFile, js_beautify(data, options), () => {
-                        showDiff(activeFileUri, vscode.Uri.file(tmpOutFile), diffTitle);
-                    });
-                }
-            });
+                });
+            }
+        } catch (error) {
+            console.log(error);
+            vscode.window.showErrorMessage(error.message);
         }
     });
 }
 
 function showDiff(leftUri: vscode.Uri, rightUri: vscode.Uri, title: string) {
+
     // check if two files are different
     exec(`diff ${leftUri.fsPath} ${rightUri.fsPath}`, (err, stdout, stderr) => {
         if (stdout) {
