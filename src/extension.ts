@@ -85,7 +85,10 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
         if (stdout) {
 
             // set context to control apply button
-            await vscode.commands.executeCommand("setContext", "style50:formatted", false);
+            await vscode.commands.executeCommand("setContext", "style50.currentDiff", [
+                formattedFileUri.fsPath.split('/').pop(),
+                sourceUri.fsPath.split('/').pop(),
+            ]);
 
             // dispose apply command, if any
             if (applyCommand) {
@@ -95,7 +98,7 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
             // re-register apply command
             applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
                 exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath}`);
-                await vscode.commands.executeCommand("setContext", "style50:formatted", true);
+                await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
 
                 // close diff editor
                 vscode.commands.executeCommand('workbench.action.closeActiveEditor');
