@@ -8,12 +8,13 @@ let applyCommand: vscode.Disposable;
 
 export function activate(context: vscode.ExtensionContext) {
 
-    // create tmp directory
-    exec(`mkdir -p /tmp/style50`);
+    // create tmp directory and clean up old diff files
+    exec('mkdir -p /tmp/style50/backup');
+    exec(`mkdir -p /tmp/style50/diff`);
 
     // make diff editor effectively read-only
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
-        if (e.document.fileName.startsWith("/tmp/style50/diff_")) {
+        if (e.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
             await vscode.commands.executeCommand('undo');
         }
     }));
@@ -24,7 +25,7 @@ export function activate(context: vscode.ExtensionContext) {
             const activeEditor = vscode.window.activeTextEditor;
             const diffTitle = `style50 ${activeEditor.document.fileName.split('/').pop()}`;
             const sourceFileUri = activeEditor.document.uri;
-            const formattedFilePath = `/tmp/style50/diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
+            const formattedFilePath = `/tmp/style50/diff/diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
             const fileExt = activeEditor.document.fileName.split('.').pop();
 
             // python
@@ -104,16 +105,24 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
 
             // re-register apply command
             applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
-                exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath}`);
-                await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
 
-                // close diff editor
+                // backup original file
+                exec(`cp ${sourceUri.fsPath} /tmp/style50/backup/backup_${Date.now()}_${sourceUri.fsPath.split('/').pop()}`);
+
+                // apply changes and remove formatted file
+                exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath} && rm ${formattedFileUri.fsPath}`);
+
+                // reset context and close diff editor
+                await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
                 vscode.commands.executeCommand('workbench.action.closeActiveEditor');
             });
 
             // show diff
             vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
         } else {
+
+            // no diff, remove formatted file
+            exec(`rm ${formattedFileUri.fsPath}`);
 
             // create a progress notification window to show the message
             const progress = vscode.window.withProgress({
