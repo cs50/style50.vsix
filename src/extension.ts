@@ -8,12 +8,12 @@ let applyCommand: vscode.Disposable;
 
 export function activate(context: vscode.ExtensionContext) {
 
-    // remove all temp files
-    exec(`rm -rf /tmp/style50_diff_*`);
+    // create tmp directory
+    exec(`mkdir -p /tmp/style50`);
 
-    // make diff editor read-only
+    // make diff editor effectively read-only
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
-        if (e.document.fileName.startsWith("/tmp/style50_diff_")) {
+        if (e.document.fileName.startsWith("/tmp/style50/diff_")) {
             await vscode.commands.executeCommand('undo');
         }
     }));
@@ -24,7 +24,7 @@ export function activate(context: vscode.ExtensionContext) {
             const activeEditor = vscode.window.activeTextEditor;
             const diffTitle = `style50 ${activeEditor.document.fileName.split('/').pop()}`;
             const sourceFileUri = activeEditor.document.uri;
-            const formattedFilePath = `/tmp/style50_diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
+            const formattedFilePath = `/tmp/style50/diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
             const fileExt = activeEditor.document.fileName.split('.').pop();
 
             // python
