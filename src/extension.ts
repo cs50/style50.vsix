@@ -8,9 +8,19 @@ let applyCommand: vscode.Disposable;
 
 export function activate(context: vscode.ExtensionContext) {
 
+    // close dnagling diff editor and clean up old diff files
+    cleanup();
+
     // create tmp directory and clean up old diff files
     exec('mkdir -p /tmp/style50/backup');
     exec(`mkdir -p /tmp/style50/diff`);
+
+    // remove diff when diff editor is closed
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((e) => {
+        if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
+            exec(`rm ${e.fileName}`);
+        }
+    }));
 
     // make diff editor effectively read-only
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
@@ -132,6 +142,22 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
             }, async (progress, token) => {
                 progress.report({ increment: 100 });
                 await new Promise(resolve => setTimeout(resolve, 3000));
+            });
+        }
+    });
+}
+
+function cleanup() {
+
+    // if there is a diff editor open, close it
+    exec('ls -t /tmp/style50/diff/diff_* | head -1', (err, stdout, stderr) => {
+        if (stdout) {
+            const fileName = stdout.trim();
+            vscode.window.showTextDocument(vscode.Uri.file(fileName), { preview: true, preserveFocus: false })
+            .then(() => {
+                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                exec(`rm ${fileName}`);
+                exec(`rm /tmp/style50/diff/diff_*`);
             });
         }
     });
