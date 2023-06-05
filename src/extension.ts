@@ -6,19 +6,18 @@ import * as formatter from 'js-beautify';
 const Mixpanel = require('mixpanel');
 const { v4: uuidv4 } = require('uuid');
 
-const UUID = uuidv4();
-const MP_PROJECT_TOKEN = '35606b699800ec6e4fda34f5c43b57dd';
+const MP_PROJECT_TOKEN = '9cb71846f78f17ded9be8316bf050cd3';
 
 let applyCommand: vscode.Disposable;
 let currentDiffText: string;
 let mixpanel: any;
+let session_uuid: string;
 
 export function activate(context: vscode.ExtensionContext) {
 
     // initialize mixpanel
     try {
         mixpanel = Mixpanel.init(MP_PROJECT_TOKEN, {keepAlive: false});
-        logEvent('user_activated_style50');
     } catch (error) {
         console.log(error);
     }
@@ -41,19 +40,21 @@ export function activate(context: vscode.ExtensionContext) {
         else if (e.document.getText() === currentDiffText) {
             currentDiffText = undefined;
             vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
-            vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(() => {
+            vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
                 e.document.save();
+                await logEvent('user_ran_style50_and_fixed_formatting');
                 vscode.window.showInformationMessage('Good job fixing the formatting!');
-                logEvent('user_ran_style50_and_fixed_formatting');
             });
         }
     }));
 
-    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((e) => {
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(async (e) => {
 
          // remove diff when diff editor is closed
         if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
             exec(`rm ${e.fileName}`);
+            await logEvent('diff_editor_closed');
+            currentDiffText = undefined;
         }
     }));
 
@@ -125,6 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
+    session_uuid = uuidv4();
 
     // check if two files are different
     exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
@@ -154,7 +156,7 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                         // apply changes and remove formatted file
                         exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath} && rm ${formattedFileUri.fsPath}`);
 
-                        logEvent('user_ran_style50_and_applied_changes');
+                        await logEvent('user_ran_style50_and_applied_changes');
                     }
 
                     // reset context and close diff editor
@@ -163,7 +165,7 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                 });
             });
 
-            // show diff
+            // show diff editor
             await vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
 
             // get current diff document text
@@ -174,7 +176,7 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
             // no diff, remove formatted file
             exec(`rm ${formattedFileUri.fsPath}`);
             showNotification('Looks good!');
-            logEvent('user_ran_style50_but_no_diff');
+            await logEvent('user_ran_style50_but_no_diff');
         }
     });
 }
@@ -195,17 +197,18 @@ function cleanup() {
     });
 }
 
-function logEvent(eventType: string) {
-    if (mixpanel) {
-        mixpanel.track(eventType, {
-            "distinct_id": UUID,
+async function logEvent(eventType: string, sessionUuid = session_uuid) {
+    const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
+    if (mixpanel && telemetryLevel === 'all') {
+        await mixpanel.track(eventType, {
+            "distinct_id": sessionUuid,
             "remote_name": vscode.env.remoteName || 'local',
         });
     }
 }
 
 function showNotification(message: string) {
-    const progress = vscode.window.withProgress({
+    vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
         title: message,
         cancellable: false
