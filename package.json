@@ -62,6 +62,8 @@
     },
     "dependencies": {
         "@vscode/vsce": "^2.19.0",
-        "js-beautify": "^1.14.7"
+        "js-beautify": "^1.14.7",
+        "mixpanel": "^0.17.0",
+        "uuid": "^9.0.0"
     }
 }
