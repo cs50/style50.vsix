@@ -3,10 +3,24 @@ import * as vscode from 'vscode';
 import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as formatter from 'js-beautify';
+const Mixpanel = require('mixpanel');
+const { v4: uuidv4 } = require('uuid');
+
+const MP_PROJECT_TOKEN = '9cb71846f78f17ded9be8316bf050cd3';
 
 let applyCommand: vscode.Disposable;
+let currentDiffText: string;
+let mixpanel: any;
+let session_uuid: string;
 
 export function activate(context: vscode.ExtensionContext) {
+
+    // initialize mixpanel
+    try {
+        mixpanel = Mixpanel.init(MP_PROJECT_TOKEN, {keepAlive: false});
+    } catch (error) {
+        console.log(error);
+    }
 
     // close dnagling diff editor and clean up old diff files
     cleanup();
@@ -15,17 +29,32 @@ export function activate(context: vscode.ExtensionContext) {
     exec('mkdir -p /tmp/style50/backup');
     exec(`mkdir -p /tmp/style50/diff`);
 
-    // remove diff when diff editor is closed
-    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((e) => {
-        if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
-            exec(`rm ${e.fileName}`);
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
+
+        // make diff editor effectively read-only
+        if (e.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
+            await vscode.commands.executeCommand('undo');
+        }
+
+        // when formatting is fixed manually, close diff editor and save file
+        else if (e.document.getText() === currentDiffText) {
+            currentDiffText = undefined;
+            vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
+            vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
+                e.document.save();
+                await logEvent('user_ran_style50_and_fixed_formatting');
+                vscode.window.showInformationMessage('Good job fixing the formatting!');
+            });
         }
     }));
 
-    // make diff editor effectively read-only
-    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
-        if (e.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
-            await vscode.commands.executeCommand('undo');
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(async (e) => {
+
+         // remove diff when diff editor is closed
+        if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
+            exec(`rm ${e.fileName}`);
+            await logEvent('diff_editor_closed');
+            currentDiffText = undefined;
         }
     }));
 
@@ -46,7 +75,7 @@ export function activate(context: vscode.ExtensionContext) {
                         vscode.window.showErrorMessage(err.message);
                         return;
                     }
-                    showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 });
             }
 
@@ -59,7 +88,7 @@ export function activate(context: vscode.ExtensionContext) {
                         vscode.window.showErrorMessage(err.message);
                         return;
                     }
-                    showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 });
             }
 
@@ -85,7 +114,7 @@ export function activate(context: vscode.ExtensionContext) {
                             break;
                     }
                     fs.writeFile(formattedFilePath, formatter[fileExt](data, options), () => {
-                        showDiff(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                        showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
                 });
             }
@@ -96,7 +125,8 @@ export function activate(context: vscode.ExtensionContext) {
     });
 }
 
-async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
+async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
+    session_uuid = uuidv4();
 
     // check if two files are different
     exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
@@ -110,46 +140,50 @@ async function showDiff(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, tit
 
             // dispose apply command, if any
             if (applyCommand) {
+                currentDiffText = '';
                 applyCommand.dispose();
             }
 
             // re-register apply command
             applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
 
-                // backup original file
-                exec(`cp ${sourceUri.fsPath} /tmp/style50/backup/backup_${Date.now()}_${sourceUri.fsPath.split('/').pop()}`);
+                exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
+                    if (stdout) {
 
-                // apply changes and remove formatted file
-                exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath} && rm ${formattedFileUri.fsPath}`);
+                        // backup original file
+                        exec(`cp ${sourceUri.fsPath} /tmp/style50/backup/backup_${Date.now()}_${sourceUri.fsPath.split('/').pop()}`);
 
-                // reset context and close diff editor
-                await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
-                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                        // apply changes and remove formatted file
+                        exec(`cp ${formattedFileUri.fsPath} ${sourceUri.fsPath} && rm ${formattedFileUri.fsPath}`);
+
+                        await logEvent('user_ran_style50_and_applied_changes');
+                    }
+
+                    // reset context and close diff editor
+                    await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
+                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                });
             });
 
-            // show diff
-            vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
+            // show diff editor
+            await vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
+
+            // get current diff document text
+            currentDiffText = vscode.window.activeTextEditor?.document.getText() || '';
+            logEvent('user_ran_style50');
         } else {
 
             // no diff, remove formatted file
             exec(`rm ${formattedFileUri.fsPath}`);
-
-            // create a progress notification window to show the message
-            const progress = vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: 'Looks good!',
-                cancellable: false
-            }, async (progress, token) => {
-                progress.report({ increment: 100 });
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            });
+            showNotification('Looks good!');
+            await logEvent('user_ran_style50_but_no_diff');
         }
     });
 }
 
 function cleanup() {
 
-    // if there is a diff editor open, close it
+    // close dnagling diff editor
     exec('ls -t /tmp/style50/diff/diff_* | head -1', (err, stdout, stderr) => {
         if (stdout) {
             const fileName = stdout.trim();
@@ -160,5 +194,26 @@ function cleanup() {
                 exec(`rm /tmp/style50/diff/diff_*`);
             });
         }
+    });
+}
+
+async function logEvent(eventType: string, sessionUuid = session_uuid) {
+    const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
+    if (mixpanel && telemetryLevel === 'all') {
+        await mixpanel.track(eventType, {
+            "distinct_id": sessionUuid,
+            "remote_name": vscode.env.remoteName || 'local',
+        });
+    }
+}
+
+function showNotification(message: string) {
+    vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: message,
+        cancellable: false
+    }, async (progress, token) => {
+        progress.report({ increment: 100 });
+        await new Promise(resolve => setTimeout(resolve, 3000));
     });
 }
