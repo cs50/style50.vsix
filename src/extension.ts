@@ -6,7 +6,7 @@ import * as formatter from 'js-beautify';
 const Mixpanel = require('mixpanel');
 const { v4: uuidv4 } = require('uuid');
 
-const MP_PROJECT_TOKEN = '9cb71846f78f17ded9be8316bf050cd3';
+const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
 
 let applyCommand: vscode.Disposable;
 let currentDiffText: string;
