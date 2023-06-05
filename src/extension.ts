@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
                 e.document.save();
                 await logEvent('user_ran_style50_and_fixed_formatting');
-                vscode.window.showInformationMessage('Good job fixing the formatting!');
+                showNotification('Good job fixing the formatting!');
             });
         }
     }));
