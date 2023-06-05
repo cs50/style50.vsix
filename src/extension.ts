@@ -201,7 +201,8 @@ async function logEvent(eventType: string, sessionUuid = session_uuid) {
     const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
     if (mixpanel && telemetryLevel === 'all') {
         await mixpanel.track(eventType, {
-            "distinct_id": sessionUuid,
+            "distinct_id": "style50-vsix",
+            "session_uuid": sessionUuid,
             "remote_name": vscode.env.remoteName || 'local',
         });
     }
