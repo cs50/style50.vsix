@@ -8,6 +8,7 @@ BraceWrapping:
   BeforeWhile: true
 BreakBeforeBraces: Custom
 ColumnLimit: 132
+IndentCaseLabels: true
 IndentWidth: 4
 AllowShortFunctionsOnASingleLine: Empty
 SpaceAfterCStyleCast: true
