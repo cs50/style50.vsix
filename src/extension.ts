@@ -85,22 +85,19 @@ export function activate(context: vscode.ExtensionContext) {
 
                 // VS Code C/CPP formatting
                 // https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting
-
-                // Use Visual Studio default style settings
-                let style = JSON.stringify({
+                const vscodeDefaultStyle = `'${JSON.stringify({
                     UseTab: vscode.workspace.getConfiguration('editor').get('useTabStops'),
                     IndentWidth: vscode.workspace.getConfiguration('editor').get('tabSize'),
+                    BreakBeforeBraces: 'Allman',
                     AllowShortIfStatementsOnASingleLine: false,
                     IndentCaseLabels: false,
                     ColumnLimit: 0
-                });
-                style = `'${style}'`;
+                })}'`;
 
                 // Use fallback style settings, if any (need to surround settings with single quotes)
+                let style = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
                 const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
-                if (fallbackStyle !== "'Visual Studio'") {
-                    style = fallbackStyle;
-                }
+                fallbackStyle !== "'Visual Studio'" ? style = fallbackStyle : style = vscodeDefaultStyle;
 
                 // Recursively search for .clang-format file from the current direcotry and up the tree to the root of workspace (if any)
                 const dir = sourceFileUri.fsPath.split('/');
@@ -115,7 +112,10 @@ export function activate(context: vscode.ExtensionContext) {
                     dir.pop();
                 }
 
+                // sanitize style string
+                style = String(style).replace(/\$/g, '\\$');
                 const style50Command = `cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${style} ${formattedFilePath}`;
+
                 exec(style50Command, (err) => {
                     if (err) {
                         console.log(err);
