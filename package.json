@@ -39,9 +39,6 @@
             ]
         }
     },
-    "files": [
-        "clang-format"
-    ],
     "activationEvents": [
         "onStartupFinished"
     ],

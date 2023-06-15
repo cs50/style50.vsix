@@ -69,7 +69,8 @@ export function activate(context: vscode.ExtensionContext) {
 
             // python
             if (fileExt === 'py') {
-                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`, (err) => {
+                const style50Command = `cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`;
+                exec(style50Command, (err) => {
                     if (err) {
                         console.log(err);
                         vscode.window.showErrorMessage(err.message);
@@ -81,8 +82,41 @@ export function activate(context: vscode.ExtensionContext) {
 
             // c, cpp, java
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
-                const clangFormatFile = vscode.Uri.joinPath(context.extension.extensionUri, 'clang-format');
-                exec(`cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${clangFormatFile} ${formattedFilePath}`, (err) => {
+
+                // VS Code C/CPP formatting
+                // https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting
+
+                // Use Visual Studio default style settings
+                let style = JSON.stringify({
+                    UseTab: vscode.workspace.getConfiguration('editor').get('useTabStops'),
+                    IndentWidth: vscode.workspace.getConfiguration('editor').get('tabSize'),
+                    AllowShortIfStatementsOnASingleLine: false,
+                    IndentCaseLabels: false,
+                    ColumnLimit: 0
+                });
+                style = `'${style}'`;
+
+                // Use fallback style settings, if any (need to surround settings with single quotes)
+                const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
+                if (fallbackStyle !== "'Visual Studio'") {
+                    style = fallbackStyle;
+                }
+
+                // Recursively search for .clang-format file from the current direcotry and up the tree to the root of workspace (if any)
+                const dir = sourceFileUri.fsPath.split('/');
+                while (dir.length > 0) {
+                    const clangFormatFile = dir.join('/') + '/.clang-format';
+                    if (fs.existsSync(clangFormatFile)) {
+
+                        // create vscode.Uri object so the URI starts with 'file://' (required by clang-format)
+                        style = String(vscode.Uri.file(clangFormatFile));
+                        break;
+                    }
+                    dir.pop();
+                }
+
+                const style50Command = `cp ${sourceFileUri.fsPath} ${formattedFilePath} && clang-format -i -style=${style} ${formattedFilePath}`;
+                exec(style50Command, (err) => {
                     if (err) {
                         console.log(err);
                         vscode.window.showErrorMessage(err.message);
