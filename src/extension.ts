@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
 
 let applyCommand: vscode.Disposable;
+let explainCommand: vscode.Disposable;
 let currentDiffText: string;
 let mixpanel: any;
 let session_uuid: string;
@@ -173,9 +174,10 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
             ]);
 
             // dispose apply command, if any
-            if (applyCommand) {
+            if (applyCommand || explainCommand) {
                 currentDiffText = '';
                 applyCommand.dispose();
+                explainCommand.dispose();
             }
 
             // re-register apply command
@@ -199,6 +201,31 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                 });
             });
 
+            explainCommand = vscode.commands.registerCommand('style50.explain', async () => {
+                try {
+
+                    exec(`diff ${sourceUri.fsPath} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
+                        if (stdout) {
+                            try {
+
+                                const diffBlocks = extractDiffBlocks(stdout, 3);
+                                let diffText = '';
+                                diffBlocks.forEach((block) => {
+                                    diffText += block;
+                                });
+
+                                const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
+                                const api = ddb50.exports;
+                                api.requestGptResponse("Please explain style50 changes for me.", `Explain the following diff blocks for me:\n\n${diffText}`);
+                            } catch (error) {
+                                console.log(error);
+                            }
+                        }});
+                } catch (error) {
+                    console.log(error);
+                }
+            });
+
             // show diff editor
             await vscode.commands.executeCommand('vscode.diff', sourceUri, formattedFileUri, title);
 
@@ -213,6 +240,12 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
             await logEvent('user_ran_style50_but_no_diff');
         }
     });
+}
+
+function extractDiffBlocks(input: string, n: number): string[] {
+    const blockSeparator = /\n(?=\d+,\d+c\d+,\d+\n)/g; // This matches the newline before each new block
+    const blocks = input.split(blockSeparator);
+    return blocks.slice(0, n);
 }
 
 function cleanup() {

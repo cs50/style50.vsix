@@ -22,6 +22,10 @@
             {
                 "command": "style50.apply",
                 "title": "Apply Changes"
+            },
+            {
+                "command": "style50.explain",
+                "title": "Explain Changes"
             }
         ],
         "menus": {
@@ -33,7 +37,12 @@
                 },
                 {
                     "command": "style50.apply",
-                    "group": "navigation@0",
+                    "group": "navigation@-1",
+                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
+                },
+                {
+                    "command": "style50.explain",
+                    "group": "navigation@-2",
                     "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
                 }
             ]
