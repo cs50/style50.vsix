@@ -217,7 +217,7 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                                 const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
                                 const api = ddb50.exports;
                                 const messageAddToChat = "Please explain style50 changes for me.";
-                                const messageToGPT = `Using the provided diff blocks delimited by triple ampersand signs:\n\n&&&${diffText}&&&\n\nExplain to me at which line the changes are made. Do not mention "diff block" or "diff blocks" in your explanation.`;
+                                const messageToGPT = `Using the provided diff blocks delimited by triple ampersand signs:\n\n&&&${diffText}&&&\n\nExplain to me at which line the changes are made in the file. Do not mention "diff block", "diff blocks", or any other symbols from the diff blocks in your explanation. Show me examples of the changes.`;
                                 api.requestGptResponse(messageAddToChat, messageToGPT);
                             } catch (error) {
                                 console.log(error);
