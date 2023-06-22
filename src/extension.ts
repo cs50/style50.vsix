@@ -217,7 +217,7 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                                 const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
                                 const api = ddb50.exports;
                                 const messageAddToChat = "Please explain style50 changes for me.";
-                                const messageToGPT = `Explain the following diff blocks for me:\n\n${diffText}\n\nPlease only explain at which line the changes are made, keep your explanation concise and simple.`;
+                                const messageToGPT = `Explain the following diff blocks for me:\n\n${diffText}\n\nPlease only explain at which line the changes are made. Keep your explanation concise and simple. No need to go into the details of or mention the "diff blocks" concept.`;
                                 api.requestGptResponse(messageAddToChat, messageToGPT);
                             } catch (error) {
                                 console.log(error);
