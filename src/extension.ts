@@ -216,10 +216,12 @@ async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Ur
                                 const displayMessage = "Please explain changes for me.";
                                 const payload = {
                                     "api": "/api/v1/style",
+                                    "config": "chat_cs50",
                                     "diff": diffText,
                                     "stream": true
                                 };
-                                api.requestGptResponse(displayMessage, payload);
+                                const contextMessage = `${displayMessage}:\n\`\`\`bash\n${diffText}`;
+                                api.requestGptResponse(displayMessage, contextMessage, payload);
                             } catch (error) {
                                 console.log(error);
                             }
