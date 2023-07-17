@@ -59,15 +59,51 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }));
 
-    // register command
+    // register style50.run command
     vscode.commands.registerCommand('style50.run', () => {
         try {
-            const activeEditor = vscode.window.activeTextEditor;
-            const diffTitle = `style50 ${activeEditor.document.fileName.split('/').pop()}`;
-            const sourceFileUri = activeEditor.document.uri;
-            const formattedFilePath = `/tmp/style50/diff/diff_${Date.now()}_${activeEditor.document.fileName.split('/').pop()}`;
-            const fileExt = activeEditor.document.fileName.split('.').pop();
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            const filePath = editor.document.fileName;
+            runStyle50(filePath);
+        } catch (error) {
+            console.log(error);
+            vscode.window.showErrorMessage(error.message);
+        }
+    });
 
+    // register style50.runFromTerminal command
+    vscode.commands.registerCommand('style50.runFromTerminal', (args) => {
+        let passArgCheck = true;
+
+        // check if file exists
+        if (!fs.existsSync(args[0])) {
+            vscode.window.showErrorMessage(`File ${args[0]} does not exist.`);
+            passArgCheck = false;
+        }
+
+        // check if there is already a diff editor open
+        vscode.window.visibleTextEditors.forEach((editor) => {
+            if (editor.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
+                vscode.window.showErrorMessage('Please close the current style50 window first.');
+                passArgCheck = false;
+            }
+        });
+
+        // run style50
+        passArgCheck ? runStyle50(args[0]) : null;
+    });
+
+    async function runStyle50(filePath: string) {
+        try {
+            const fileName = filePath.split('/').pop();
+            const fileExt = fileName.split('.').pop();
+            const sourceFileUri = vscode.Uri.file(filePath);
+            const diffTitle = `style50 ${fileName}`;
+            const formattedFilePath = `/tmp/style50/diff/diff_${Date.now()}_${fileName}`;
+            
             // python
             if (fileExt === 'py') {
                 const style50Command = `cp ${sourceFileUri.fsPath} ${formattedFilePath} && black ${formattedFilePath}`;
@@ -157,8 +193,9 @@ export function activate(context: vscode.ExtensionContext) {
             console.log(error);
             vscode.window.showErrorMessage(error.message);
         }
-    });
+    }
 }
+
 
 async function showDiffEditor(sourceUri: vscode.Uri, formattedFileUri: vscode.Uri, title: string) {
     session_uuid = uuidv4();
