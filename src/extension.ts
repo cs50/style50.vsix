@@ -281,7 +281,7 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                                 });
                                 const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
                                 const api = ddb50.exports;
-                                const displayMessage = "Please explain changes for me.";
+                                const displayMessage = "Explain Changes";
                                 const payload = {
                                     "api": "/api/v1/style",
                                     "config": "chat_cs50",
