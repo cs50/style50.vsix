@@ -169,14 +169,14 @@ export async function activate(context: vscode.ExtensionContext) {
                 // sanitize style string
                 styleConfigs = String(styleConfigs).replace(/\$/g, '\\$');
 
+                const stepClangFsyntax = `clang -fsyntax-only ${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
                 const stepCopy = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath}`;
-                const stepClangFsyntax = `clang -fsyntax-only ${formattedFilePath}`;
                 const stepClangFormat = `clang-format -i -style=${styleConfigs} ${formattedFilePath}`;
 
                 // run style50
                 try {
-                    await exec(stepCopy);
                     await exec(stepClangFsyntax);
+                    await exec(stepCopy);
                     await exec(stepClangFormat);
                     showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 } catch (error) {
