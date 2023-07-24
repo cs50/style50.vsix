@@ -26,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // close dnagling diff editor and clean up old diff files
-    cleanup();
+    await cleanup();
 
     // create tmp directory and clean up old diff files
     await exec('mkdir -p /tmp/style50/backup');
@@ -55,7 +55,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
          // remove diff when diff editor is closed
         if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
-            // await exec(`rm ${e.fileName}`);
+            
+            // check if e.fileName exists
+            if (fs.existsSync(e.fileName)) {
+                await exec(`rm ${e.fileName}`);
+            }
+
             await logEvent('diff_editor_closed');
             currentDiffText = undefined;
         }
@@ -121,6 +126,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 try {
                     await exec(stepCopy);
                     await exec(stepBlackFormat);
+                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 } catch (error) {
                     if (error.cmd === stepCopy) {
                         console.log("Error while copying the file: ", error);
@@ -336,20 +342,8 @@ function extractDiffBlocks(input: string, n: number): string[] {
     return blocks.slice(0, n);
 }
 
-function cleanup() {
-
-    // close dnagling diff editor
-    exec('ls -t /tmp/style50/diff/diff_* | head -1', (err, stdout, stderr) => {
-        if (stdout) {
-            const fileName = stdout.trim();
-            vscode.window.showTextDocument(vscode.Uri.file(fileName), { preview: true, preserveFocus: false })
-            .then(() => {
-                vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                exec(`rm ${fileName}`);
-                exec(`rm /tmp/style50/diff/diff_*`);
-            });
-        }
-    });
+async function cleanup() {
+    await exec(`rm -rf /tmp/style50/diff/*`);
 }
 
 async function logEvent(eventType: string, sessionUuid = session_uuid) {
