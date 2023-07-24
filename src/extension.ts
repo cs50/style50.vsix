@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
 import * as fs from 'fs';
 import * as formatter from 'js-beautify';
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 const Mixpanel = require('mixpanel');
 const { v4: uuidv4 } = require('uuid');
 
@@ -14,7 +15,7 @@ let currentDiffText: string;
 let mixpanel: any;
 let session_uuid: string;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 
     // initialize mixpanel
     try {
@@ -27,8 +28,8 @@ export function activate(context: vscode.ExtensionContext) {
     cleanup();
 
     // create tmp directory and clean up old diff files
-    exec('mkdir -p /tmp/style50/backup');
-    exec(`mkdir -p /tmp/style50/diff`);
+    await exec('mkdir -p /tmp/style50/backup');
+    await exec(`mkdir -p /tmp/style50/diff`);
 
     context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(async (e) => {
 
@@ -53,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
 
          // remove diff when diff editor is closed
         if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
-            exec(`rm ${e.fileName}`);
+            // await exec(`rm ${e.fileName}`);
             await logEvent('diff_editor_closed');
             currentDiffText = undefined;
         }
@@ -98,23 +99,39 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function runStyle50(filePath: string) {
         try {
+
+            const sourceFileUri = vscode.Uri.file(filePath);
             const fileName = filePath.split('/').pop();
             const fileExt = fileName.split('.').pop();
-            const sourceFileUri = vscode.Uri.file(filePath);
+
             const diffTitle = `style50 ${fileName}`;
-            const formattedFilePath = `/tmp/style50/diff/diff_${Date.now()}_${fileName}`;
+            
+            const diffDir = `/tmp/style50/diff/diff_${Date.now()}`;
+            await exec(`mkdir -p ${diffDir}`);
+
+            const formattedFilePath = `${diffDir}/${fileName}`;
             
             // python
             if (fileExt === 'py') {
-                const style50Command = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath} && black ${formattedFilePath}`;
-                exec(style50Command, (err) => {
-                    if (err) {
-                        console.log(err);
-                        vscode.window.showErrorMessage(err.message);
+                const sourcePath = `${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
+                const stepCopy = `cp ${sourcePath} ${formattedFilePath}`;
+                const stepBlackFormat = `black ${formattedFilePath}`;
+
+                try {
+                    await exec(stepCopy);
+                    await exec(stepBlackFormat);
+                } catch (error) {
+                    if (error.cmd === stepCopy) {
+                        console.log("Error while copying the file: ", error);
+                        vscode.window.showErrorMessage("An error occurred while copying the file. Please try again.");
                         return;
                     }
-                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
-                });
+                    if (error.cmd === stepBlackFormat) {
+                        console.log("style50 runs into an error: ", error);
+                        vscode.window.showErrorMessage("Looks like your code has some syntax errors. Please fix them first and try again.");
+                        return;
+                    }
+                }
             }
 
             // c, cpp, java
@@ -132,9 +149,9 @@ export function activate(context: vscode.ExtensionContext) {
                 })}'`;
 
                 // Use fallback style settings, if any (need to surround settings with single quotes)
-                let style = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
+                let styleConfigs = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
                 const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
-                fallbackStyle !== "'Visual Studio'" ? style = fallbackStyle : style = vscodeDefaultStyle;
+                fallbackStyle !== "'Visual Studio'" ? styleConfigs = fallbackStyle : styleConfigs = vscodeDefaultStyle;
 
                 // Recursively search for .clang-format file from the current direcotry and up the tree to the root of workspace (if any)
                 const dir = sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/');
@@ -143,29 +160,42 @@ export function activate(context: vscode.ExtensionContext) {
                     if (fs.existsSync(clangFormatFile)) {
 
                         // create vscode.Uri object so the URI starts with 'file://' (required by clang-format)
-                        style = String(vscode.Uri.file(clangFormatFile));
+                        styleConfigs = String(vscode.Uri.file(clangFormatFile));
                         break;
                     }
                     dir.pop();
                 }
 
                 // sanitize style string
-                style = String(style).replace(/\$/g, '\\$');
-                const style50Command = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath} && clang-format -i -style=${style} ${formattedFilePath}`;
+                styleConfigs = String(styleConfigs).replace(/\$/g, '\\$');
 
-                exec(style50Command, (err) => {
-                    if (err) {
-                        console.log(err);
-                        vscode.window.showErrorMessage(err.message);
+                const stepCopy = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath}`;
+                const stepClangFsyntax = `clang -fsyntax-only ${formattedFilePath}`;
+                const stepClangFormat = `clang-format -i -style=${styleConfigs} ${formattedFilePath}`;
+
+                // run style50
+                try {
+                    await exec(stepCopy);
+                    await exec(stepClangFsyntax);
+                    await exec(stepClangFormat);
+                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                } catch (error) {
+                    if (error.cmd === stepCopy) {
+                        console.log("Error while copying the file: ", error);
+                        vscode.window.showErrorMessage("An error occurred while copying the file. Please try again.");
                         return;
                     }
-                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
-                });
+                    if (error.cmd === stepClangFsyntax || error.cmd === stepClangFormat) {
+                        console.log("style50 runs into an error: ", error);
+                        vscode.window.showErrorMessage("Looks like your code has some syntax errors. Please fix them first and try again.");
+                        return;
+                    }
+                }
             }
 
             // html, css, javascript
             if (['html', 'css', 'js'].includes(fileExt)) {
-                fs.readFile(sourceFileUri.fsPath.replace(/ /g, '\\ '), 'utf8', function (err, data) {
+                fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
                     if (err) {
                         console.log(err);
                         vscode.window.showErrorMessage(err.message);
@@ -191,7 +221,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
         } catch (error) {
             console.log(error);
-            vscode.window.showErrorMessage(error.message);
+            vscode.window.showErrorMessage("style50 runs into an error. Please try again. If the problem persists, please check browser console for more details.");
         }
     }
 }
@@ -201,7 +231,7 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
     session_uuid = uuidv4();
 
     // check if two files are different
-    exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
+    await exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
         if (stdout) {
 
             // set context to control apply button
@@ -220,14 +250,14 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
             // re-register apply command
             applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
 
-                exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
+                await exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
                     if (stdout) {
 
                         // backup original file
-                        exec(`cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} /tmp/style50/backup/backup_${Date.now()}_${sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/').pop()}`);
+                        await exec(`cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} /tmp/style50/backup/backup_${Date.now()}_${sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/').pop()}`);
 
                         // apply changes and remove formatted file
-                        exec(`cp ${formattedFileUri.fsPath} ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} && rm ${formattedFileUri.fsPath}`);
+                        await exec(`cp ${formattedFileUri.fsPath} ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} && rm ${formattedFileUri.fsPath}`);
 
                         await logEvent('user_ran_style50_and_applied_changes');
                     }
@@ -235,13 +265,14 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                     // reset context and close diff editor
                     await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
                     vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                    currentDiffText = '';
                 });
             });
 
             explainCommand = vscode.commands.registerCommand('style50.explain', async () => {
                 try {
 
-                    exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
+                    await exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
                         if (stdout) {
                             try {
                                 let diffText = '';
@@ -277,7 +308,7 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
         } else {
 
             // no diff, remove formatted file
-            exec(`rm ${formattedFileUri.fsPath}`);
+            await exec(`rm ${formattedFileUri.fsPath}`);
             showNotification('Looks good!');
             await logEvent('user_ran_style50_but_no_diff');
         }
