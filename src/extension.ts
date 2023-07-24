@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as formatter from 'js-beautify';
+import * as jsFormatter from 'js-beautify';
+import { format } from 'sql-formatter';
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const Mixpanel = require('mixpanel');
@@ -214,7 +215,21 @@ export async function activate(context: vscode.ExtensionContext) {
                         default:
                             break;
                     }
-                    fs.writeFile(formattedFilePath, formatter[fileExt](data, options), () => {
+                    fs.writeFile(formattedFilePath, jsFormatter[fileExt](data, options), () => {
+                        showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                    });
+                });
+            }
+
+            // SQL
+            if (fileExt === 'sql') {
+                fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
+                    if (err) {
+                        console.log(err);
+                        vscode.window.showErrorMessage(err.message);
+                        return;
+                    }
+                    fs.writeFile(formattedFilePath, format(data), () => {
                         showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
                 });
