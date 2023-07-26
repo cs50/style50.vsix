@@ -2,7 +2,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as jsFormatter from 'js-beautify';
-import { format } from 'sql-formatter';
+import { FormatOptionsWithLanguage, format } from 'sql-formatter';
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const Mixpanel = require('mixpanel');
@@ -229,13 +229,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
             // SQL
             if (fileExt === 'sql') {
+                const styleConfig = vscode.workspace.getConfiguration('Prettier-SQL') as FormatOptionsWithLanguage;
                 fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
                     if (err) {
                         console.log(err);
                         vscode.window.showErrorMessage(err.message);
                         return;
                     }
-                    fs.writeFile(formattedFilePath, format(data), () => {
+                    fs.writeFile(formattedFilePath, format(data, styleConfig), () => {
                         showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
                 });
