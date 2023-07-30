@@ -221,7 +221,10 @@ export async function activate(context: vscode.ExtensionContext) {
                         default:
                             break;
                     }
-                    fs.writeFile(formattedFilePath, jsFormatter[fileExt](data, options), () => {
+                    fs.writeFile(formattedFilePath, jsFormatter[fileExt](data, options), async() => {
+                        if (fileExt === 'html') {
+                            await exec(`djhtml ${formattedFilePath}`);
+                        }
                         showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
                 });
