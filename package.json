@@ -59,10 +59,10 @@
         "watch": "tsc -watch -p ./"
     },
     "devDependencies": {
-        "@types/node": "^20.5.7",
+        "@types/node": "^20.5.9",
         "@types/vscode": "^1.81.0",
-        "@typescript-eslint/eslint-plugin": "^6.5.0",
-        "@typescript-eslint/parser": "^6.5.0",
+        "@typescript-eslint/eslint-plugin": "^6.6.0",
+        "@typescript-eslint/parser": "^6.6.0",
         "eslint": "^8.48.0",
         "typescript": "^5.2.2"
     },
@@ -70,7 +70,7 @@
         "@vscode/vsce": "^2.21.0",
         "js-beautify": "^1.14.9",
         "mixpanel": "^0.17.0",
-        "sql-formatter": "^12.2.4",
+        "sql-formatter": "^13.0.0",
         "uuid": "^9.0.0"
     }
 }
