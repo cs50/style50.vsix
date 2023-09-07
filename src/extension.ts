@@ -55,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
          // remove diff when diff editor is closed
         if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
-            
+
             // check if e.fileName exists
             if (fs.existsSync(e.fileName)) {
                 await exec(`rm ${e.fileName}`);
@@ -111,12 +111,12 @@ export async function activate(context: vscode.ExtensionContext) {
             const fileExt = fileName.split('.').pop();
 
             const diffTitle = `style50 ${fileName}`;
-            
+
             const diffDir = `/tmp/style50/diff/diff_${Date.now()}`;
             await exec(`mkdir -p ${diffDir}`);
 
             const formattedFilePath = `${diffDir}/${fileName}`;
-            
+
             // python
             if (fileExt === 'py') {
                 const sourcePath = `${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
@@ -296,29 +296,37 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             explainCommand = vscode.commands.registerCommand('style50.explain', async () => {
                 try {
-
                     await exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
                         if (stdout) {
                             try {
+
+                                // extract first 3 diff blocks
+                                const blocks = extractDiffBlocks(stdout, 3);
                                 let diffText = '';
-                                extractDiffBlocks(stdout, 3).forEach((block) => {
+                                for (const block of blocks){
+                                    if((diffText.length + block.length) > 950) {
+                                        break;
+                                    }
                                     diffText += block;
-                                });
-                                const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
-                                const api = ddb50.exports;
+                                }
+
                                 const displayMessage = "Explain Changes";
+                                const contextMessage = `${displayMessage}:\n\`\`\`bash\n${diffText}`;
                                 const payload = {
                                     "api": "/api/v1/style",
                                     "config": "chat_cs50",
                                     "diff": diffText,
                                     "stream": true
                                 };
-                                const contextMessage = `${displayMessage}:\n\`\`\`bash\n${diffText}`;
+
+                                const ddb50 = vscode.extensions.getExtension('cs50.ddb50');
+                                const api = ddb50.exports;
                                 api.requestGptResponse(displayMessage, contextMessage, payload);
                             } catch (error) {
                                 console.log(error);
                             }
-                        }});
+                        }
+                    });
                 } catch (error) {
                     console.log(error);
                 }
