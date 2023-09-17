@@ -12,9 +12,14 @@ const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
 
 let applyCommand: vscode.Disposable;
 let explainCommand: vscode.Disposable;
-let currentDiffText: string;
 let mixpanel: any;
 let session_uuid: string;
+
+// global variable to keep track of current diff editor state
+let currentDiffText: string;
+let lastSourceFileUri: vscode.Uri;
+let lastFormattedFileUri: vscode.Uri;
+let lastTitle: string;
 
 export async function activate(context: vscode.ExtensionContext) {
 
@@ -26,7 +31,7 @@ export async function activate(context: vscode.ExtensionContext) {
     }
 
     // close dnagling diff editor and clean up old diff files
-    await cleanup();
+    await resetDiffEditor();
 
     // create tmp directory and clean up old diff files
     await exec('mkdir -p /tmp/style50/backup');
@@ -40,11 +45,12 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         // when formatting is fixed manually, close diff editor and save file
-        else if (e.document.getText() === currentDiffText) {
+        else if (e.document.getText() === currentDiffText && currentDiffText !== '') {
             currentDiffText = undefined;
             vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
             vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
                 e.document.save();
+                resetDiffEditor();
                 await logEvent('user_ran_style50_and_fixed_formatting');
                 showNotification('Good job fixing the formatting!');
             });
@@ -59,6 +65,9 @@ export async function activate(context: vscode.ExtensionContext) {
             // check if e.fileName exists
             if (fs.existsSync(e.fileName)) {
                 await exec(`rm -rf ${e.fileName.split('/').slice(0, -1).join('/')}`);
+                lastSourceFileUri = undefined;
+                lastFormattedFileUri = undefined;
+                lastTitle = undefined;
             }
 
             await logEvent('diff_editor_closed');
@@ -67,14 +76,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }));
 
     // register style50.run command
-    vscode.commands.registerCommand('style50.run', () => {
+    vscode.commands.registerCommand('style50.run', async() => {
         try {
             const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
+            if (editor) {
+                await resetDiffEditor();
+                runStyle50(editor.document.fileName);
             }
-            const filePath = editor.document.fileName;
-            runStyle50(filePath);
         } catch (error) {
             console.log(error);
             vscode.window.showErrorMessage(error.message);
@@ -287,10 +295,8 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                         await logEvent('user_ran_style50_and_applied_changes');
                     }
 
-                    // reset context and close diff editor
-                    await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
-                    vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                    currentDiffText = '';
+                    // reset context and clean up diff files
+                    resetDiffEditor();
                 });
             });
 
@@ -334,16 +340,17 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             // show diff editor
             await vscode.commands.executeCommand('vscode.diff', sourceFileUri, formattedFileUri, title);
+            setDiffEditorContext(sourceFileUri, formattedFileUri, title);
 
             // get current diff document text
             currentDiffText = vscode.window.activeTextEditor?.document.getText() || '';
             logEvent('user_ran_style50');
         } else {
 
-            // no diff, remove formatted file
-            await exec(`rm ${formattedFileUri.fsPath}`);
-            showNotification('Looks good!');
+            // no diff, remove formatted file's parent directory (subsequently remove the formatted file)
+            await exec(`rm -rf ${formattedFileUri.fsPath.split('/').slice(0, -1).join('/')}`);
             await logEvent('user_ran_style50_but_no_diff');
+            showNotification('Looks good!');
         }
     });
 }
@@ -354,19 +361,35 @@ function extractDiffBlocks(input: string, n: number): string[] {
     return blocks.slice(0, n);
 }
 
-async function cleanup() {
-    await exec(`rm -rf /tmp/style50/diff/*`);
+function setDiffEditorContext(sourceFileUri, formattedFileUri, title) {
+    lastSourceFileUri = sourceFileUri;
+    lastFormattedFileUri = formattedFileUri;
+    lastTitle = title;
 }
 
-async function logEvent(eventType: string, sessionUuid = session_uuid) {
-    const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
-    if (mixpanel && telemetryLevel === 'all') {
-        await mixpanel.track(eventType, {
-            "distinct_id": "style50-vsix",
-            "session_uuid": sessionUuid,
-            "remote_name": vscode.env.remoteName || 'local',
+async function resetDiffEditor() {
+
+    // check if there is any tab with style50 label open
+    vscode.window.tabGroups.all.forEach((tabGroup) => {
+        tabGroup.tabs.forEach(async(tab) => {
+            if (tab.label.match(/^style50\s.+\..+$/)) {
+                if (vscode.window.activeTextEditor?.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
+                    await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                } else {
+                    await vscode.commands.executeCommand('vscode.diff', lastSourceFileUri, lastFormattedFileUri, lastTitle).then(() => {
+                        vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                    });
+                }
+            }
         });
-    }
+    });
+
+    await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
+    await exec(`rm -rf /tmp/style50/diff/*`);
+    currentDiffText = '';
+    lastSourceFileUri = undefined;
+    lastFormattedFileUri = undefined;
+    lastTitle = undefined;
 }
 
 function showNotification(message: string) {
@@ -378,4 +401,15 @@ function showNotification(message: string) {
         progress.report({ increment: 100 });
         await new Promise(resolve => setTimeout(resolve, 3000));
     });
+}
+
+async function logEvent(eventType: string, sessionUuid = session_uuid) {
+    const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
+    if (mixpanel && telemetryLevel === 'all') {
+        await mixpanel.track(eventType, {
+            "distinct_id": "style50-vsix",
+            "session_uuid": sessionUuid,
+            "remote_name": vscode.env.remoteName || 'local',
+        });
+    }
 }
