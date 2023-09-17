@@ -53,12 +53,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(async (e) => {
 
-         // remove diff when diff editor is closed
+         // remove diff and its parent directory when diff editor is closed
         if (e.fileName.startsWith("/tmp/style50/diff/diff_")) {
 
             // check if e.fileName exists
             if (fs.existsSync(e.fileName)) {
-                await exec(`rm ${e.fileName}`);
+                await exec(`rm -rf ${e.fileName.split('/').slice(0, -1).join('/')}`);
             }
 
             await logEvent('diff_editor_closed');
@@ -265,7 +265,7 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                 sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/').pop(),
             ]);
 
-            // dispose apply command, if any
+            // dispose apply and explain commands if they exist
             if (applyCommand || explainCommand) {
                 currentDiffText = '';
                 applyCommand.dispose();
