@@ -135,7 +135,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                     if (error.cmd === stepBlackFormat) {
                         console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage("Looks like your code has some syntax errors. Please fix them first and try again.");
+                        vscode.window.showErrorMessage("Can't check your style just yet! Try running your code, fix any errors, then check its style again!");
                         return;
                     }
                 }
@@ -160,7 +160,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
                 fallbackStyle !== "'Visual Studio'" ? styleConfigs = fallbackStyle : styleConfigs = vscodeDefaultStyle;
 
-                // Recursively search for .clang-format file from the current direcotry and up the tree to the root of workspace (if any)
+                // Recursively search for .clang-format file from the current directory and up the tree to the root of workspace (if any)
                 const dir = sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/');
                 while (dir.length > 0) {
                     const clangFormatFile = dir.join('/') + '/.clang-format';
@@ -194,7 +194,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                     if (error.cmd === stepClangFsyntax || error.cmd === stepClangFormat) {
                         console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage("Looks like your code has some syntax errors. Please fix them first and try again.");
+                        vscode.window.showErrorMessage("Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!");
                         return;
                     }
                 }
