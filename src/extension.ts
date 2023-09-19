@@ -184,7 +184,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 // sanitize style string
                 styleConfigs = String(styleConfigs).replace(/\$/g, '\\$');
 
-                const stepClangFsyntax = `clang -fsyntax-only ${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
+                const stepClangFsyntax = `clang $CFLAGS -fsyntax-only ${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
                 const stepCopy = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath}`;
                 const stepClangFormat = `clang-format -i -style=${styleConfigs} ${formattedFilePath}`;
 
