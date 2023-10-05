@@ -190,7 +190,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 // ensure code compiles before running clang-format
                 const stepClangFsyntax = `clang ${CFLAGS} -fsyntax-only ${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
                 const stepCopy = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath}`;
-                const stepClangFormat = `clang-format -i -style=${styleConfigs} ${formattedFilePath}`;
+                const stepClangFormat = `clang-format -i -style=${styleConfigs} -assume-filename=.${fileExt} ${formattedFilePath}`;
 
                 // run style50
                 try {
