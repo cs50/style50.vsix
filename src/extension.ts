@@ -237,6 +237,8 @@ export async function activate(context: vscode.ExtensionContext) {
                         if (fileExt === 'html') {
                             await exec(`djhtml ${formattedFilePath}`);
                         }
+                        // add a new line at the end of the formatted file
+                        await exec(`echo >> ${formattedFilePath}`);
                         showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                     });
                 });
