@@ -302,7 +302,10 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                     }
 
                     // reset context and clean up diff files
-                    resetDiffEditor();
+                    await resetDiffEditor();
+
+                    // reset editor
+                    await resetEditor();
                 });
             });
 
@@ -396,6 +399,17 @@ async function resetDiffEditor() {
     lastSourceFileUri = undefined;
     lastFormattedFileUri = undefined;
     lastTitle = undefined;
+}
+
+async function resetEditor() {
+    // set cursor position to the beginning of the file
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+        const position = editor.selection.active;
+        const newPosition = position.with(0, 0);
+        const newSelection = new vscode.Selection(newPosition, newPosition);
+        editor.selection = newSelection;
+    }
 }
 
 function showNotification(message: string) {
