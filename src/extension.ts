@@ -143,7 +143,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                     if (error.cmd === stepBlackFormat) {
                         console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage("Can't check your style just yet! Try running your code, fix any errors, then check its style again!");
+                        vscode.window.showErrorMessage(`Can't check your style just yet! Try running your code, fix any errors, then check its style again!\n${error}`);
                         return;
                     }
                 }
@@ -206,7 +206,7 @@ export async function activate(context: vscode.ExtensionContext) {
                     }
                     if (error.cmd === stepClangFsyntax || error.cmd === stepClangFormat) {
                         console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage("Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!");
+                        vscode.window.showErrorMessage(`Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!\n${error}`);
                         return;
                     }
                 }
