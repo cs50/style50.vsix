@@ -129,11 +129,11 @@ export async function activate(context: vscode.ExtensionContext) {
             if (fileExt === 'py') {
                 const sourcePath = `${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
                 const stepCopy = `cp ${sourcePath} ${formattedFilePath}`;
-                const stepBlackFormat = `black ${formattedFilePath}`;
+                const stepAutopep8 = `autopep8 --in-place --max-line-length 132 ${formattedFilePath}`;
 
                 try {
                     await exec(stepCopy);
-                    await exec(stepBlackFormat);
+                    await exec(stepAutopep8);
                     showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
                 } catch (error) {
                     if (error.cmd === stepCopy) {
@@ -141,7 +141,7 @@ export async function activate(context: vscode.ExtensionContext) {
                         vscode.window.showErrorMessage("An error occurred while copying the file. Please try again.");
                         return;
                     }
-                    if (error.cmd === stepBlackFormat) {
+                    if (error.cmd === stepAutopep8) {
                         console.log("style50 runs into an error: ", error);
                         vscode.window.showErrorMessage(`Can't check your style just yet! Try running your code, fix any errors, then check its style again!\n${error}`);
                         return;
