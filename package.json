@@ -7,7 +7,7 @@
     "publisher": "CS50",
     "repository": "https://github.com/cs50/style50.vsix",
     "engines": {
-        "vscode": "^1.83.1"
+        "vscode": "^1.85.0"
     },
     "categories": [
         "Education",
@@ -60,7 +60,7 @@
     },
     "devDependencies": {
         "@types/node": "^20.11.17",
-        "@types/vscode": "^1.86.0",
+        "@types/vscode": "^1.85.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
         "eslint": "^8.56.0",
