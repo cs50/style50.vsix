@@ -16,12 +16,27 @@ let mixpanel: any;
 let session_uuid: string;
 
 // global variable to keep track of current diff editor state
+let aliasContext: vscode.ExtensionContext;
 let currentDiffText: string;
-let lastSourceFileUri: vscode.Uri;
-let lastFormattedFileUri: vscode.Uri;
-let lastTitle: string;
+let style50State: any;
+
 
 export async function activate(context: vscode.ExtensionContext) {
+
+    aliasContext = context;
+
+    // retrieve style50State from workspaceState or initialize it
+    try {
+        style50State = context.workspaceState.get('style50State');
+    } finally {
+        if (!style50State) {
+            style50State = {
+                lastSourceFilePath: '',
+                lastFormattedFilePath: '',
+                lastTitle: ''
+            };
+        }
+    }
 
     // initialize mixpanel
     try {
@@ -65,9 +80,7 @@ export async function activate(context: vscode.ExtensionContext) {
             // check if e.fileName exists
             if (fs.existsSync(e.fileName)) {
                 await exec(`rm -rf ${e.fileName.split('/').slice(0, -1).join('/')}`);
-                lastSourceFileUri = undefined;
-                lastFormattedFileUri = undefined;
-                lastTitle = undefined;
+                resetState();
             }
 
             await logEvent('diff_editor_closed');
@@ -349,7 +362,7 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             // show diff editor
             await vscode.commands.executeCommand('vscode.diff', sourceFileUri, formattedFileUri, title);
-            setDiffEditorContext(sourceFileUri, formattedFileUri, title);
+            setState(sourceFileUri, formattedFileUri, title);
 
             // get current diff document text
             currentDiffText = vscode.window.activeTextEditor?.document.getText() || '';
@@ -370,10 +383,15 @@ function extractDiffBlocks(input: string, n: number): string[] {
     return blocks.slice(0, n);
 }
 
-function setDiffEditorContext(sourceFileUri, formattedFileUri, title) {
-    lastSourceFileUri = sourceFileUri;
-    lastFormattedFileUri = formattedFileUri;
-    lastTitle = title;
+function setState(sourceFileUri, formattedFileUri, title) {
+    style50State.lastSourceFilePath = sourceFileUri.fsPath;
+    style50State.lastFormattedFilePath = formattedFileUri.fsPath;
+    style50State.lastTitle = title;
+    aliasContext.workspaceState.update('style50State', style50State);
+}
+
+function resetState() {
+    aliasContext.workspaceState.update('style50State', undefined);
 }
 
 async function resetDiffEditor() {
@@ -385,9 +403,15 @@ async function resetDiffEditor() {
                 if (vscode.window.activeTextEditor?.document.fileName.startsWith("/tmp/style50/diff/diff_")) {
                     await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
                 } else {
-                    await vscode.commands.executeCommand('vscode.diff', lastSourceFileUri, lastFormattedFileUri, lastTitle).then(() => {
-                        vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-                    });
+                    // check if lastSourceFileUri and lastFormattedFileUri actually exist
+                    if (fs.existsSync(style50State.lastSourceFilePath) && fs.existsSync(style50State.lastFormattedFilePath)) {
+                        const lastSourceFileUri = vscode.Uri.file(style50State.lastSourceFilePath);
+                        const lastFormattedFileUri = vscode.Uri.file(style50State.lastFormattedFilePath);
+                        const lastTitle = style50State.lastTitle;
+                        await vscode.commands.executeCommand('vscode.diff', lastSourceFileUri, lastFormattedFileUri, lastTitle).then(() => {
+                            vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+                        });
+                    }
                 }
             }
         });
@@ -395,10 +419,7 @@ async function resetDiffEditor() {
 
     await vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
     await exec(`rm -rf /tmp/style50/diff/*`);
-    currentDiffText = '';
-    lastSourceFileUri = undefined;
-    lastFormattedFileUri = undefined;
-    lastTitle = undefined;
+    resetState();
 }
 
 async function resetEditor() {
