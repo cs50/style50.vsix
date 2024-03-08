@@ -142,7 +142,7 @@ export async function activate(context: vscode.ExtensionContext) {
             if (fileExt === 'py') {
                 const sourcePath = `${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
                 const stepCopy = `cp ${sourcePath} ${formattedFilePath}`;
-                const stepAutopep8 = `autopep8 --in-place --max-line-length 132 ${formattedFilePath}`;
+                const stepAutopep8 = `autopep8 --in-place --max-line-length 100 ${formattedFilePath}`;
 
                 try {
                     await exec(stepCopy);
