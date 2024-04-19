@@ -12,6 +12,7 @@ const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
 
 let applyCommand: vscode.Disposable;
 let explainCommand: vscode.Disposable;
+let userDidPressApply: boolean = false;
 let mixpanel: any;
 let session_uuid: string;
 
@@ -60,7 +61,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
 
         // when formatting is fixed manually, close diff editor and save file
-        else if (e.document.getText() === currentDiffText && currentDiffText !== '') {
+        else if (e.document.getText() === currentDiffText && currentDiffText !== '' && !userDidPressApply) {
             currentDiffText = undefined;
             vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
             vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
@@ -297,10 +298,13 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
                 currentDiffText = '';
                 applyCommand.dispose();
                 explainCommand.dispose();
+                userDidPressApply = false;
             }
 
             // re-register apply command
             applyCommand = vscode.commands.registerCommand('style50.apply', async () => {
+
+                userDidPressApply = true;
 
                 await exec(`diff ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFileUri.fsPath}`, async (err, stdout, stderr) => {
                     if (stdout) {
