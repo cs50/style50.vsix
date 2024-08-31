@@ -180,6 +180,7 @@ export async function activate(context: vscode.ExtensionContext) {
                 // Use fallback style settings, if any (need to surround settings with single quotes)
                 let styleConfigs = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
                 const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
+                console.log("Fallback style: ", fallbackStyle);
                 fallbackStyle !== "'Visual Studio'" ? styleConfigs = fallbackStyle : styleConfigs = vscodeDefaultStyle;
 
                 // Recursively search for .clang-format file from the current directory and up the tree to the root of workspace (if any)
