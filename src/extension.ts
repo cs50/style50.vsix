@@ -65,10 +65,12 @@ export async function activate(context: vscode.ExtensionContext) {
             currentDiffText = undefined;
             vscode.commands.executeCommand("setContext", "style50.currentDiff", false);
             vscode.commands.executeCommand('workbench.action.closeActiveEditor').then(async () => {
+                validateFile(e.document.uri);
                 e.document.save();
                 resetDiffEditor();
                 await logEvent('user_ran_style50_and_fixed_formatting');
                 showNotification('Good job fixing the formatting!');
+
             });
         }
     }));
@@ -180,7 +182,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 // Use fallback style settings, if any (need to surround settings with single quotes)
                 let styleConfigs = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
                 const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
-                console.log("Fallback style: ", fallbackStyle);
                 fallbackStyle !== "'Visual Studio'" ? styleConfigs = fallbackStyle : styleConfigs = vscodeDefaultStyle;
 
                 // Recursively search for .clang-format file from the current directory and up the tree to the root of workspace (if any)
@@ -324,6 +325,9 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
                     // reset editor
                     await resetEditor();
+
+                    // validate formatted file for comments
+                    await validateFile(sourceFileUri);
                 });
             });
 
@@ -376,8 +380,10 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             // no diff, remove formatted file's parent directory (subsequently remove the formatted file)
             await exec(`rm -rf ${formattedFileUri.fsPath.split('/').slice(0, -1).join('/')}`);
+
+            // validate formatted file for comments
+            await validateFile(sourceFileUri);
             await logEvent('user_ran_style50_but_no_diff');
-            showNotification('Looks good!');
         }
     });
 }
@@ -397,6 +403,26 @@ function setState(sourceFileUri, formattedFileUri, title) {
 
 function resetState() {
     aliasContext.workspaceState.update('style50State', undefined);
+}
+
+async function validateFile(fileUri: vscode.Uri) {
+  // run style50-cli once more on the formatted file to see if there are any comments feedback
+  await exec(
+    `style50-cli ${fileUri.fsPath} -o json`,
+    async (err, stdout, stderr) => {
+      if (stdout) {
+        const requiredMoreComments = Boolean(
+          JSON.parse(stdout)["files"][0]["comments"]
+        );
+        if (requiredMoreComments) {
+          showNotification("Looks good, but consider adding more comments!");
+        } else {
+          showNotification("Looks good!");
+        }
+      }
+    }
+  );
+  return true;
 }
 
 async function resetDiffEditor() {
