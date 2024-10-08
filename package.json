@@ -32,17 +32,17 @@
             "editor/title": [
                 {
                     "command": "style50.run",
-                    "group": "navigation@0",
+                    "group": "navigation@-50",
                     "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && !isInDiffEditor"
                 },
                 {
                     "command": "style50.apply",
-                    "group": "navigation@-1",
+                    "group": "navigation@-51",
                     "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
                 },
                 {
                     "command": "style50.explain",
-                    "group": "navigation@-2",
+                    "group": "navigation@-52",
                     "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
                 }
             ]
