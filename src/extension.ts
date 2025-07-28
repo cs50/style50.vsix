@@ -5,7 +5,6 @@ import * as jsFormatter from 'js-beautify';
 import { FormatOptionsWithLanguage, format } from 'sql-formatter';
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
-const Mixpanel = require('mixpanel');
 const { v4: uuidv4 } = require('uuid');
 
 const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
@@ -13,7 +12,6 @@ const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
 let applyCommand: vscode.Disposable;
 let explainCommand: vscode.Disposable;
 let userDidPressApply: boolean = false;
-let mixpanel: any;
 let session_uuid: string;
 
 // global variable to keep track of current diff editor state
@@ -39,13 +37,6 @@ export async function activate(context: vscode.ExtensionContext) {
         }
     }
 
-    // initialize mixpanel
-    try {
-        mixpanel = Mixpanel.init(MP_PROJECT_TOKEN, {keepAlive: false});
-    } catch (error) {
-        console.log(error);
-    }
-
     // close dnagling diff editor and clean up old diff files
     await resetDiffEditor();
 
@@ -68,7 +59,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 validateFile(e.document.uri);
                 e.document.save();
                 resetDiffEditor();
-                await logEvent('user_ran_style50_and_fixed_formatting');
                 showNotification('Good job fixing the formatting!');
 
             });
@@ -85,8 +75,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 await exec(`rm -rf ${e.fileName.split('/').slice(0, -1).join('/')}`);
                 resetState();
             }
-
-            await logEvent('diff_editor_closed');
             currentDiffText = undefined;
         }
     }));
@@ -316,8 +304,6 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
                         // apply changes and remove formatted file
                         await exec(`cp ${formattedFileUri.fsPath} ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} && rm ${formattedFileUri.fsPath}`);
-
-                        await logEvent('user_ran_style50_and_applied_changes');
                     }
 
                     // reset context and clean up diff files
@@ -375,7 +361,6 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             // get current diff document text
             currentDiffText = vscode.window.activeTextEditor?.document.getText() || '';
-            logEvent('user_ran_style50');
         } else {
 
             // no diff, remove formatted file's parent directory (subsequently remove the formatted file)
@@ -383,7 +368,6 @@ async function showDiffEditor(sourceFileUri: vscode.Uri, formattedFileUri: vscod
 
             // validate formatted file for comments
             await validateFile(sourceFileUri);
-            await logEvent('user_ran_style50_but_no_diff');
         }
     });
 }
@@ -473,15 +457,4 @@ function showNotification(message: string) {
         progress.report({ increment: 100 });
         await new Promise(resolve => setTimeout(resolve, 3000));
     });
-}
-
-async function logEvent(eventType: string, sessionUuid = session_uuid) {
-    const telemetryLevel = vscode.workspace.getConfiguration().get('telemetry.telemetryLevel');
-    if (mixpanel && telemetryLevel === 'all') {
-        await mixpanel.track(eventType, {
-            "distinct_id": "style50-vsix",
-            "session_uuid": sessionUuid,
-            "remote_name": vscode.env.remoteName || 'local',
-        });
-    }
 }

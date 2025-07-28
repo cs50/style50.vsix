@@ -69,7 +69,6 @@
     "dependencies": {
         "@vscode/vsce": "^3.6.0",
         "js-beautify": "^1.15.4",
-        "mixpanel": "^0.18.1",
         "sql-formatter": "^15.6.6",
         "uuid": "^11.1.0"
     }
