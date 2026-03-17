@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
+const execFileAsync = util.promisify(require('child_process').execFile);
 const { v4: uuidv4 } = require('uuid');
 
 const MP_PROJECT_TOKEN = '95bdbf1403923d872234d15671de43ab';
@@ -130,8 +131,7 @@ export async function activate(context: vscode.ExtensionContext) {
             // C/C++/Java syntax pre-check stays in the VS Code extension as a UX guard.
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
                 try {
-                    const CFLAGS = "$CFLAGS -Wno-unused-command-line-argument";
-                    await exec(`clang ${CFLAGS} -fsyntax-only ${shellEscapePath(sourceFileUri.fsPath)}`);
+                    await exec(`clang $CFLAGS -Wno-unused-command-line-argument -fsyntax-only '${shellEscapeSingleQuotes(sourceFileUri.fsPath)}'`);
                 } catch (error) {
                     console.log("style50 runs into an error: ", error);
                     vscode.window.showErrorMessage(`Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!\n${error}`);
@@ -139,23 +139,23 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             }
 
-            // Delegate ALL formatting to the style50 CLI.
-            let style50Cmd = `style50 -o format "${shellEscapeDoubleQuotes(filePath)}"`;
+            // Delegate ALL formatting to the style50 CLI via execFile (no shell).
+            const style50Args = ['-o', 'format', filePath];
 
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
                 const styleConfig = resolveClangFormatStyle(sourceFileUri);
                 if (styleConfig) {
-                    style50Cmd += ` --clang-format-style '${shellEscapeSingleQuotes(styleConfig)}'`;
+                    style50Args.push('--clang-format-style', styleConfig);
                 }
             }
 
             try {
-                const { stdout } = await exec(style50Cmd, { maxBuffer: 10 * 1024 * 1024 });
-                fs.writeFileSync(formattedFilePath, stdout, 'utf8');
+                const { stdout } = await execFileAsync('style50', style50Args, { maxBuffer: 10 * 1024 * 1024 });
+                await fs.promises.writeFile(formattedFilePath, stdout, 'utf8');
                 showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
             } catch (error) {
                 console.log("style50 runs into an error: ", error);
-                vscode.window.showErrorMessage(`Can't check your style just yet! Try running your code, fix any errors, then check its style again!\n${error}`);
+                vscode.window.showErrorMessage(`Can't check your style just yet! Fix any errors, then check its style again!\n${error}`);
                 return;
             }
         } catch (error) {
