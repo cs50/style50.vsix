@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as jsFormatter from 'js-beautify';
-import { FormatOptionsWithLanguage, format } from 'sql-formatter';
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const { v4: uuidv4 } = require('uuid');
@@ -129,138 +127,36 @@ export async function activate(context: vscode.ExtensionContext) {
 
             const formattedFilePath = `${diffDir}/${fileName}`;
 
-            // python
-            if (fileExt === 'py') {
-                const sourcePath = `${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
-                const stepCopy = `cp ${sourcePath} ${formattedFilePath}`;
-                const stepAutopep8 = `autopep8 --in-place --max-line-length 100 ${formattedFilePath}`;
-
-                try {
-                    await exec(stepCopy);
-                    await exec(stepAutopep8);
-                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
-                } catch (error) {
-                    if (error.cmd === stepCopy) {
-                        console.log("Error while copying the file: ", error);
-                        vscode.window.showErrorMessage("An error occurred while copying the file. Please try again.");
-                        return;
-                    }
-                    if (error.cmd === stepAutopep8) {
-                        console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage(`Can't check your style just yet! Try running your code, fix any errors, then check its style again!\n${error}`);
-                        return;
-                    }
-                }
-            }
-
-            // c, cpp, java
+            // C/C++/Java syntax pre-check stays in the VS Code extension as a UX guard.
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
-
-                // VS Code C/CPP formatting
-                // https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting
-                const vscodeDefaultStyle = `'${JSON.stringify({
-                    UseTab: vscode.workspace.getConfiguration('editor').get('useTabStops'),
-                    IndentWidth: vscode.workspace.getConfiguration('editor').get('tabSize'),
-                    BreakBeforeBraces: 'Allman',
-                    AllowShortIfStatementsOnASingleLine: false,
-                    IndentCaseLabels: false,
-                    ColumnLimit: 0
-                })}'`;
-
-                // Use fallback style settings, if any (need to surround settings with single quotes)
-                let styleConfigs = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_style');
-                const fallbackStyle = `'${vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle')}'`;
-                fallbackStyle !== "'Visual Studio'" ? styleConfigs = fallbackStyle : styleConfigs = vscodeDefaultStyle;
-
-                // Recursively search for .clang-format file from the current directory and up the tree to the root of workspace (if any)
-                const dir = sourceFileUri.fsPath.replace(/ /g, '\\ ').split('/');
-                while (dir.length > 0) {
-                    const clangFormatFile = dir.join('/') + '/.clang-format';
-                    if (fs.existsSync(clangFormatFile)) {
-
-                        // create vscode.Uri object so the URI starts with 'file://' (required by clang-format)
-                        styleConfigs = String(vscode.Uri.file(clangFormatFile));
-                        break;
-                    }
-                    dir.pop();
-                }
-
-                // sanitize style string
-                styleConfigs = String(styleConfigs).replace(/\$/g, '\\$');
-
-                // suppress unused command line argument error
-                const CFLAGS = "$CFLAGS -Wno-unused-command-line-argument";
-
-                // ensure code compiles before running clang-format
-                const stepClangFsyntax = `clang ${CFLAGS} -fsyntax-only ${sourceFileUri.fsPath.replace(/ /g, '\\ ')}`;
-                const stepCopy = `cp ${sourceFileUri.fsPath.replace(/ /g, '\\ ')} ${formattedFilePath}`;
-                const stepClangFormat = `clang-format -i -style=${styleConfigs} -assume-filename=.${fileExt} ${formattedFilePath}`;
-
-                // run style50
                 try {
-                    await exec(stepClangFsyntax);
-                    await exec(stepCopy);
-                    await exec(stepClangFormat);
-                    showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+                    const CFLAGS = "$CFLAGS -Wno-unused-command-line-argument";
+                    await exec(`clang ${CFLAGS} -fsyntax-only ${shellEscapePath(sourceFileUri.fsPath)}`);
                 } catch (error) {
-                    if (error.cmd === stepCopy) {
-                        console.log("Error while copying the file: ", error);
-                        vscode.window.showErrorMessage("An error occurred while copying the file. Please try again.");
-                        return;
-                    }
-                    if (error.cmd === stepClangFsyntax || error.cmd === stepClangFormat) {
-                        console.log("style50 runs into an error: ", error);
-                        vscode.window.showErrorMessage(`Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!\n${error}`);
-                        return;
-                    }
+                    console.log("style50 runs into an error: ", error);
+                    vscode.window.showErrorMessage(`Can't check your style just yet! Try compiling your code, fix any errors, then check its style again!\n${error}`);
+                    return;
                 }
             }
 
-            // html, css, javascript
-            if (['html', 'css', 'js'].includes(fileExt)) {
-                fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
-                    if (err) {
-                        console.log(err);
-                        vscode.window.showErrorMessage(err.message);
-                        return;
-                    }
-                    const options = { indent_size: 4 };
-                    switch (fileExt) {
-                        case 'html':
-                            options['indent_inner_html'] = true;
-                            break;
-                        case 'css':
-                            break;
-                        case 'js':
-                            options['space_in_empty_paren'] = true;
-                            break;
-                        default:
-                            break;
-                    }
-                    fs.writeFile(formattedFilePath, jsFormatter[fileExt](data, options), async() => {
-                        if (fileExt === 'html') {
-                            await exec(`djhtml ${formattedFilePath}`);
-                        }
-                        // add a new line at the end of the formatted file
-                        await exec(`echo >> ${formattedFilePath}`);
-                        showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
-                    });
-                });
+            // Delegate ALL formatting to the style50 CLI.
+            let style50Cmd = `style50 -o format "${shellEscapeDoubleQuotes(filePath)}"`;
+
+            if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
+                const styleConfig = resolveClangFormatStyle(sourceFileUri);
+                if (styleConfig) {
+                    style50Cmd += ` --clang-format-style '${shellEscapeSingleQuotes(styleConfig)}'`;
+                }
             }
 
-            // SQL
-            if (fileExt === 'sql') {
-                const styleConfig = vscode.workspace.getConfiguration('Prettier-SQL') as FormatOptionsWithLanguage;
-                fs.readFile(sourceFileUri.fsPath, 'utf8', function (err, data) {
-                    if (err) {
-                        console.log(err);
-                        vscode.window.showErrorMessage(err.message);
-                        return;
-                    }
-                    fs.writeFile(formattedFilePath, format(data, styleConfig), () => {
-                        showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
-                    });
-                });
+            try {
+                const { stdout } = await exec(style50Cmd, { maxBuffer: 10 * 1024 * 1024 });
+                fs.writeFileSync(formattedFilePath, stdout, 'utf8');
+                showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
+            } catch (error) {
+                console.log("style50 runs into an error: ", error);
+                vscode.window.showErrorMessage(`Can't check your style just yet! Try running your code, fix any errors, then check its style again!\n${error}`);
+                return;
             }
         } catch (error) {
             console.log(error);
@@ -457,4 +353,51 @@ function showNotification(message: string) {
         progress.report({ increment: 100 });
         await new Promise(resolve => setTimeout(resolve, 3000));
     });
+}
+
+function shellEscapePath(path: string): string {
+    return path.replace(/ /g, '\\ ');
+}
+
+function shellEscapeDoubleQuotes(value: string): string {
+    return value.replace(/"/g, '\\"');
+}
+
+function shellEscapeSingleQuotes(value: string): string {
+    // Safely embed in single-quoted shell string: 'foo'"'"'bar'
+    return value.replace(/'/g, `'\"'\"'`);
+}
+
+function resolveClangFormatStyle(sourceFileUri: vscode.Uri): string | null {
+    // Prefer a .clang-format file, walking up from the current directory.
+    const dirParts = sourceFileUri.fsPath.split('/');
+    while (dirParts.length > 0) {
+        const clangFormatFile = dirParts.join('/') + '/.clang-format';
+        if (fs.existsSync(clangFormatFile)) {
+            // clang-format accepts a file:// URI
+            return String(vscode.Uri.file(clangFormatFile));
+        }
+        dirParts.pop();
+    }
+
+    // Fall back to VS Code C/C++ extension settings when no .clang-format is found.
+    // https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting
+    const vscodeDefaultStyle = JSON.stringify({
+        UseTab: vscode.workspace.getConfiguration('editor').get('useTabStops'),
+        IndentWidth: vscode.workspace.getConfiguration('editor').get('tabSize'),
+        BreakBeforeBraces: 'Allman',
+        AllowShortIfStatementsOnASingleLine: false,
+        IndentCaseLabels: false,
+        ColumnLimit: 0
+    });
+
+    const fallbackStyleRaw = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle');
+    if (typeof fallbackStyleRaw === 'string') {
+        const fallbackStyle = fallbackStyleRaw.trim();
+        if (fallbackStyle && fallbackStyle !== 'Visual Studio') {
+            return fallbackStyle;
+        }
+    }
+
+    return vscodeDefaultStyle;
 }

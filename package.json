@@ -33,17 +33,17 @@
                 {
                     "command": "style50.run",
                     "group": "navigation@-50",
-                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && !isInDiffEditor"
+                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js|sql)$/) && !isInDiffEditor"
                 },
                 {
                     "command": "style50.apply",
                     "group": "navigation@-51",
-                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
+                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js|sql)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
                 },
                 {
                     "command": "style50.explain",
                     "group": "navigation@-52",
-                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
+                    "when": "(resourceExtname =~ /\\.(py|c|cpp|h|hpp|java|html|css|js|sql)$/) && isInDiffEditor && (resourceFilename in style50.currentDiff)"
                 }
             ]
         }
@@ -68,8 +68,6 @@
     },
     "dependencies": {
         "@vscode/vsce": "^3.7.1",
-        "js-beautify": "^1.15.4",
-        "sql-formatter": "^15.7.2",
         "uuid": "^13.0.0"
     }
 }
