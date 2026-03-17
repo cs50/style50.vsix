@@ -380,17 +380,6 @@ function resolveClangFormatStyle(sourceFileUri: vscode.Uri): string | null {
         dirParts.pop();
     }
 
-    // Fall back to VS Code C/C++ extension settings when no .clang-format is found.
-    // https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting
-    const vscodeDefaultStyle = JSON.stringify({
-        UseTab: vscode.workspace.getConfiguration('editor').get('useTabStops'),
-        IndentWidth: vscode.workspace.getConfiguration('editor').get('tabSize'),
-        BreakBeforeBraces: 'Allman',
-        AllowShortIfStatementsOnASingleLine: false,
-        IndentCaseLabels: false,
-        ColumnLimit: 0
-    });
-
     const fallbackStyleRaw = vscode.workspace.getConfiguration('C_Cpp').get('clang_format_fallbackStyle');
     if (typeof fallbackStyleRaw === 'string') {
         const fallbackStyle = fallbackStyleRaw.trim();
@@ -399,5 +388,5 @@ function resolveClangFormatStyle(sourceFileUri: vscode.Uri): string | null {
         }
     }
 
-    return vscodeDefaultStyle;
+    return null;
 }
