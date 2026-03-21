@@ -139,7 +139,11 @@ export async function activate(context: vscode.ExtensionContext) {
                 }
             }
 
-            // Delegate ALL formatting to the style50 CLI via execFile (no shell).
+            // Use style50-cli (the Python CLI entry point), not style50 (a bash
+            // wrapper in CS50 Codespace that only accepts a single file and opens
+            // the VS Code GUI). execFileAsync without shell: true is required so
+            // --clang-format-style values containing spaces/braces are passed as a
+            // single argument instead of being split by the shell.
             const style50Args = ['-o', 'format', filePath];
 
             if (['c', 'cpp', 'h', 'hpp', 'java'].includes(fileExt)) {
@@ -150,12 +154,13 @@ export async function activate(context: vscode.ExtensionContext) {
             }
 
             try {
-                const { stdout } = await execFileAsync('style50', style50Args, { maxBuffer: 10 * 1024 * 1024 });
+                const { stdout } = await execFileAsync('style50-cli', style50Args, { maxBuffer: 10 * 1024 * 1024 });
                 await fs.promises.writeFile(formattedFilePath, stdout, 'utf8');
                 showDiffEditor(sourceFileUri, vscode.Uri.file(formattedFilePath), diffTitle);
             } catch (error) {
                 console.log("style50 runs into an error: ", error);
-                vscode.window.showErrorMessage(`Can't check your style just yet! Fix any errors, then check its style again!\n${error}`);
+                const detail = error.stderr ? error.stderr.trim() : error.message;
+                vscode.window.showErrorMessage(`Can't check your style just yet! Fix any errors, then check its style again!\n${detail}`);
                 return;
             }
         } catch (error) {
