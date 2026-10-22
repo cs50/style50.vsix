@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 const util = require('util');
@@ -370,7 +369,7 @@ function shellEscapeDoubleQuotes(value: string): string {
 
 function shellEscapeSingleQuotes(value: string): string {
     // Safely embed in single-quoted shell string: 'foo'"'"'bar'
-    return value.replace(/'/g, `'\"'\"'`);
+    return value.replace(/'/g, `'"'"'`);
 }
 
 function resolveClangFormatStyle(sourceFileUri: vscode.Uri): string | null {
