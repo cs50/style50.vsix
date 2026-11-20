@@ -7,7 +7,7 @@
     "publisher": "CS50",
     "repository": "https://github.com/cs50/style50.vsix",
     "engines": {
-        "vscode": "^1.140.0"
+        "vscode": "^1.144.0"
     },
     "categories": [
         "Education",
@@ -59,16 +59,21 @@
         "watch": "tsc -watch -p ./"
     },
     "devDependencies": {
-        "@types/node": "^26.6.5",
-        "@types/vscode": "^1.140.0",
+        "@types/node": "^26.6.6",
+        "@types/vscode": "^1.144.0",
         "@eslint/js": "^10.0.1",
-        "@vscode/vsce": "^4.0.0",
-        "eslint": "^10.13.0",
-        "globals": "^17.13.0",
+        "@vscode/vsce": "^4.1.1",
+        "eslint": "^10.15.0",
+        "globals": "^17.14.0",
         "typescript": "^6.0.3",
-        "typescript-eslint": "^8.72.0"
+        "typescript-eslint": "^8.73.0"
     },
     "dependencies": {
         "uuid": "^14.0.3"
+    },
+    "overrides": {
+        "@vscode/vsce": {
+            "minimatch": "^11.0.1"
+        }
     }
 }
